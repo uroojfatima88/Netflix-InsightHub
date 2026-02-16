@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="details-box">
+    <h2>{{ movie.title }}</h2>
+
+    <p><strong>Type:</strong> {{ movie.type }}</p>
+    <p><strong>Country:</strong> {{ movie.country }}</p>
+    <p><strong>Release Year:</strong> {{ movie.release_year }}</p>
+    <p><strong>Rating:</strong> {{ movie.rating }}</p>
+    <p><strong>Genre:</strong> {{ movie.listed_in }}</p>
+
+    <p class="description">{{ movie.description }}</p>
+</div>
+
+<hr>
+
+<h3>Recommended for You</h3>
+<ul class="recommendations">
+    {% for rec in recommendations %}
+    <li>{{ rec }}</li>
+    {% endfor %}
+</ul>
+{% endblock %}
