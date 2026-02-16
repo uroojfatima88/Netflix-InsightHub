@@ -1,47 +1,43 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from tensorflow.keras.models import load_model
 import joblib
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import MinMaxScaler
+import os
+from tensorflow.keras.models import load_model
 
 # ------------------------
-# Load data, model, scaler
+# File paths
+# ------------------------
+BASE_DIR = os.path.dirname(__file__)
+DATA_PATH = os.path.join(BASE_DIR, "cleaned_data.csv")
+FEATURES_PATH = os.path.join(BASE_DIR, "features.npy")
+MODEL_PATH = os.path.join(BASE_DIR, "ann_model.h5")
+SCALER_PATH = os.path.join(BASE_DIR, "scaler.save")
+TFIDF_PATH = os.path.join(BASE_DIR, "tfidf_vectorizer.save")
+
+# ------------------------
+# Load data and resources
 # ------------------------
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_data.csv")
-    features = np.load("features.npy")
+    df = pd.read_csv(DATA_PATH)
+    features = np.load(FEATURES_PATH)
     return df, features
 
 @st.cache_resource
-def load_ann():
-    return load_model("ann_model.h5")
-
-@st.cache_resource
-def load_scaler():
-    return joblib.load("scaler.save")
+def load_resources():
+    model = load_model(MODEL_PATH)
+    scaler = joblib.load(SCALER_PATH)
+    tfidf = joblib.load(TFIDF_PATH)
+    return model, scaler, tfidf
 
 df, features = load_data()
-model = load_ann()
-scaler = load_scaler()
-
-# ------------------------
-# TF-IDF vectorizer
-# ------------------------
-@st.cache_resource
-def load_tfidf():
-    tfidf = TfidfVectorizer(stop_words="english", max_features=500)
-    tfidf.fit((df["listed_in"] + " " + df["description"]))
-    return tfidf
-
-tfidf = load_tfidf()
+model, scaler, tfidf = load_resources()
 
 # ------------------------
 # App Title
 # ------------------------
-st.title("Netflix Dataset Explorer 🎬")
+st.title("Netflix Dataset Explorer & Recommendations 🎬")
 
 # ------------------------
 # Dataset Overview
@@ -71,19 +67,21 @@ st.header("Content Recommendations")
 selected_title = st.selectbox("Select a title to get similar content", df["title"].values)
 
 if st.button("Find Recommendations"):
-    # Get the index of selected title
+    # Get text of selected title
     idx = df[df["title"] == selected_title].index[0]
-
-    # Get original TF-IDF vector and scale it
     content_text = df.loc[idx, "listed_in"] + " " + df.loc[idx, "description"]
+
+    # Convert text to TF-IDF and scale
     vector = tfidf.transform([content_text]).toarray()
     vector_scaled = scaler.transform(vector)
 
-    # Compute cosine similarity with all scaled features
+    # Compute cosine similarity with all embeddings
     sims = np.dot(features, vector_scaled.T).flatten() / (
         np.linalg.norm(features, axis=1) * np.linalg.norm(vector_scaled) + 1e-10
     )
-    top_idx = sims.argsort()[-6:-1][::-1]  # top 5 similar titles
+
+    # Top 5 similar titles
+    top_idx = sims.argsort()[-6:-1][::-1]
     recs = df.iloc[top_idx][["title", "type", "listed_in"]]
 
     st.write("### Recommended Titles:")
